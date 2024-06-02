@@ -20,7 +20,7 @@ int main(int argc, char ** argv) {
 
     constexpr double pi = M_PI;
 
-    Domain domain(7, 0.,1.);
+    Domain domain(11, 0.,1.);
 
     source_type f = [](const double & x, const double & y) {return 8*pi*pi*sin(2*pi*x)*sin(2*pi*y);};
     source_type u_ex = [](const double & x, const double & y) {return sin(2*pi*x)*sin(2*pi*y);};
