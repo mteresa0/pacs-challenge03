@@ -1,10 +1,14 @@
 #ifndef SOLVER_HPP
 #define SOLVER_HPP
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#include <mpi.h>
+#pragma GCC diagnostic pop
+
 #include <vector>
 #include "domain.hpp"
 #include <functional>
-#include <mpi.h>
 #include "boundaries.hpp"
 
 namespace laplacian_solver {
@@ -16,17 +20,18 @@ namespace laplacian_solver {
         const Domain domain;
         const index_type global_N;
         const Boundaries bds;
-        const double tol;
-        const unsigned max_it;
 
         const source_type f;
         const source_type u_ex;
+
+        const double tol;
+        const unsigned max_it;
 
     public:
         Solver(const Domain & _domain, const source_type & _f, 
                 const source_type & _u_ex, const double & _tol = 1e-6, 
                 const unsigned & _max_it = 1000) : 
-        domain(_domain), global_N(_domain.N), f(_f), u_ex(_u_ex), tol(_tol), max_it(_max_it) ,bds(_domain) {};
+        domain(_domain), global_N(_domain.N), bds(_domain), f(_f), u_ex(_u_ex), tol(_tol), max_it(_max_it) {};
 
         void evaluate_boundaries(std::vector<double> & ) const;
 
@@ -36,7 +41,8 @@ namespace laplacian_solver {
 
         inline index_type get_global_row(const int & rank, const int & size, const index_type & local_row) const 
         {
-        return (global_N%size>rank) ? rank*(1+global_N/size) + local_row : (global_N%size)+(global_N/size)*rank + local_row;
+        return (global_N%size > static_cast<unsigned int>(rank)) ? 
+        rank*(1+global_N/size) + local_row : (global_N%size)+(global_N/size)*rank + local_row;
         };     
 
         inline double f_discretized(index_type i, index_type j) const {
@@ -48,10 +54,6 @@ namespace laplacian_solver {
         }
 
     };
-
-    
-
-
 
 } // namespace laplacian_solver
 

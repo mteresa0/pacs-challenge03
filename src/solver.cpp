@@ -2,6 +2,7 @@
 #include "boundaries.hpp"
 #include <iostream>
 #include <cmath>
+#include "omp.h"
 
 namespace laplacian_solver{
     void Boundaries::check_boundaries_compatibility(const double & a, const double & b)
@@ -41,7 +42,7 @@ namespace laplacian_solver{
             };
         
         
-        index_type local_rows = (global_N%size>rank) ?  global_N/size+1 : global_N/size;
+        index_type local_rows = (global_N%size > static_cast<unsigned int>(rank)) ?  global_N/size+1 : global_N/size;
 
         // update global upper
         if (rank==size-1){
@@ -68,15 +69,17 @@ namespace laplacian_solver{
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+        int num_threads = omp_get_num_threads();
+
         const unsigned int min_local_size = global_N/size;
         const unsigned int remainder = global_N%size;
 
-        index_type local_rows = (remainder>rank) ?  min_local_size+1 : min_local_size;
+        index_type local_rows = (remainder > static_cast<unsigned int>(rank)) ?  min_local_size+1 : min_local_size;
 
         std::vector<int> start_index, local_size;
         start_index.resize(size); local_size.resize(size);
         int count = 0;
-        for (int r = 0; r<size; ++r){
+        for (unsigned int r = 0; r < static_cast<unsigned int>(size); ++r){
             local_size[r] = (remainder>r) ?  (min_local_size+1)*global_N : min_local_size*global_N;
             start_index[r] = count;
             count += local_size[r];
@@ -113,6 +116,7 @@ namespace laplacian_solver{
         {
             err = 0;
             if (local_rows>2){
+                #pragma omp parallel for shared(new_local_u) num_threads(num_threads)
                 for (index_type j = 1; j<(local_rows-1); ++j) 
                 {
                     for (index_type i = 1; i<(global_N-1); ++i)
