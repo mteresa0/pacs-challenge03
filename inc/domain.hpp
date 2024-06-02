@@ -5,21 +5,21 @@
 #include <vector>
 
 namespace laplacian_solver {
-
+    using index_type = std::size_t;
 
     /// @brief describes a 2D square domain [a,b]x[a,b]
     /// each dimension is divided by N nodes
-    class Domain 
+    struct Domain 
     {
         /// @brief number of nodes
-        const unsigned int N;
+        const index_type N;
         /// @brief bounds of the domain
         const double a, b;
         /// @brief distretization step
         const double h;
-    public:
+
         Domain() = default;
-        Domain(const unsigned int & _N, const double & _a, const double & _b) : 
+        Domain(const index_type & _N, const double & _a, const double & _b) : 
         N(_N), a(_a), b(_b), h((_b-_a)/(_N-1)) {};
 
         /// @brief print domain data
@@ -34,13 +34,11 @@ namespace laplacian_solver {
         /// have the same discretization and values
         /// @param i index (from 0 to N-1)
         /// @return i-th node in x or y direction
-        inline double get_coord(const unsigned int & i) {return h*i+a;};
+        inline const double get_coord(const index_type & i) const {return h*i+a;};
 
         /// @brief returns the number of all the nodes
         /// @return (N*N)
-        inline unsigned int get_size_grid() {return N*N;}
-
-        friend class Solver;
+        inline const index_type get_size_grid() const {return N*N;}
     };
 
 }; // namespace laplacian_solver

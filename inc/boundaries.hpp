@@ -7,6 +7,8 @@
 
 namespace laplacian_solver
 {
+    using index_type = std::size_t;
+    using boundary_function = std::function<double(const double &)>;
         
     enum boundary_edge {
         upper,
@@ -16,46 +18,53 @@ namespace laplacian_solver
     };
 
     template <boundary_edge BE>
-    class Boundary
+    struct Boundary
     {
-        const unsigned int N;
-    public:
-        Boundary(const unsigned int & _N) : N(_N) {};
-        virtual ~Boundary() = default;
+        const index_type N;
 
-        inline unsigned int get_size() {return N;};
-        std::vector<unsigned int> get_boundary_indexes();
+        boundary_function fun;
 
-        virtual void evaluate_boundary(std::vector<double> & u) const {return;};
+        Boundary(const index_type & _N, const boundary_function & _fun = [](const double &){return 0;}) : 
+        N(_N), fun(_fun) {};
+
+        /// @brief 
+        /// @param  
+        /// @return 
+        index_type get_boundary_index(const index_type &) const;
     };
 
-    template<boundary_edge BE>
-    class Dirichlet_Boundary : public Boundary {
-        std::function(double(double)) fun;
-    public:
-        Dirichlet_Boundary(const unsigned int & _N, std::function(double(double)) _fun = [](const double &){return 0;}) : Boundary(_N), fun(_fun) {};
-        void evaluate_boundary(std::vector<double> & u) const override;
+    struct Boundaries
+    {
+        const Boundary<upper> B_upper;
+        const Boundary<lower> B_lower;
+        const Boundary<left> B_left;
+        const Boundary<right> B_right;
+
+        void check_boundaries_compatibility(const double & a, const double & b);
+
+        Boundaries(const Domain & domain): B_upper(Boundary<upper>(domain.N)), B_lower(Boundary<lower>(domain.N)), 
+        B_left(Boundary<left>(domain.N)), B_right(Boundary<right>(domain.N)) {check_boundaries_compatibility(domain.a, domain.b);};
+
+        Boundaries(const Boundary<upper> & _upper, const Boundary<lower> & _lower, 
+        const Boundary<left> & _left, const Boundary<right> & _right) : 
+        B_upper(_upper), B_lower(_lower), B_left(_left), B_right(_right) {};
     };
 
-    template<boundary_edge BE>
-    std::vector<unsigned int> Boundary<BE>::get_boundary_indexes()
-    {
-        return std::vector<unsigned int>();
-    }
+    template<>
+    inline index_type Boundary<upper>::get_boundary_index(const index_type & k) const
+    {return (N-1)*N + k;};
 
-    // template <typename T>
-    // std::vector<unsigned int> Boundary<T, upper>::get_boundary_indexes() {
-        
-    //     std::vector<unsigned int> idx(N,0);
+    template<>
+    inline index_type Boundary<lower>::get_boundary_index(const index_type & k) const
+    {return k;};
 
-    //     for (unsigned int i = 0; i<N; ++i)
-    //     {
-    //         idx[i] = N*(N-1) + i;
-    //     }
+    template<>
+    inline index_type Boundary<left>::get_boundary_index(const index_type & k) const
+    {return k*(N);};
 
-    //     return idx;
-    // }
-
+    template<>
+    inline index_type Boundary<right>::get_boundary_index(const index_type & k) const
+    {return (k+1)*N - 1;};
 
 } // namespace laplacian_solver
 
