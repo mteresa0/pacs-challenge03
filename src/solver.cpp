@@ -34,7 +34,7 @@ namespace laplacian_solver{
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-        // update global upper
+        // update global lower
         if(rank==0)
             for (index_type i = 1; i<domain.N-1;++i) {
                 u_local[i] = bds.B_lower.fun(domain.a + i*domain.h);
@@ -70,6 +70,8 @@ namespace laplacian_solver{
 
         index_type local_rows = (domain.N%size>rank) ?  domain.N/size+1 : domain.N/size;
 
+        std::cout << "Rank " << rank << " has " << local_rows << " rows\n";
+
         std::vector<double> old_local_u(domain.N*local_rows, 0);
 
         evaluate_boundaries(old_local_u);
@@ -77,31 +79,37 @@ namespace laplacian_solver{
         std::vector<double> upper(domain.N-2, 0);
         std::vector<double> lower(domain.N-2, 0);
 
+        std::vector<double> upper_to_send(domain.N-2, 0);
+        std::vector<double> lower_to_send(domain.N-2, 0);
+
         bool converged = false;
         std::vector<double> new_local_u(old_local_u);
 
         double prod = 0;
         double err = 0;
+        double c = 0;
         for(unsigned n = 0; n<max_it && !converged; ++n)
         {
             err = 0;
-            for (index_type i = 1; i<domain.N-1; ++i){
-                for (index_type j = 1; j>local_rows-1; ++j)
-                {
-                    new_local_u[get_vector_index(i,j)] = 1/4*(old_local_u[get_vector_index(i+1,j)] +
-                                                            old_local_u[get_vector_index(i-1, j)] +
-                                                            old_local_u[get_vector_index(i, j+1)] +
-                                                            old_local_u[get_vector_index(i, j-1)] +
-                                                            domain.h*domain.h*f_discretized(i,get_global_row(rank, size, j)));
-                    prod = new_local_u[get_vector_index(i,j)]-old_local_u[get_vector_index(i,j)];
-                    err += prod*prod;
+            if (local_rows>2){
+                for (index_type j = 1; j<(local_rows-1); ++j){
+                    for (index_type i = 1; i<domain.N-1; ++i)
+                    {
+                        new_local_u[get_vector_index(i,j)] = (old_local_u[get_vector_index(i+1,j)] +
+                                                                old_local_u[get_vector_index(i-1, j)] +
+                                                                old_local_u[get_vector_index(i, j+1)] + 
+                                                                old_local_u[get_vector_index(i, j-1)] + 
+                                                                domain.h*domain.h*f_discretized(i,get_global_row(rank, size, j)))*0.25;
+                        prod = new_local_u[get_vector_index(i,j)]-old_local_u[get_vector_index(i,j)];
+                        err += prod*prod;
+                    }
                 }
             }
 
             if (rank!=0) {
                 for (index_type i = 1; i<domain.N-1; ++i)
                 {
-                    new_local_u[get_vector_index(i,0)] = 1/4*(old_local_u[get_vector_index(i+1,0)] +
+                    new_local_u[get_vector_index(i,0)] = 0.25*(old_local_u[get_vector_index(i+1,0)] +
                                                             old_local_u[get_vector_index(i-1, 0)] +
                                                             old_local_u[get_vector_index(i, 1)] +
                                                             lower[i-1] +
@@ -115,7 +123,7 @@ namespace laplacian_solver{
                 for (index_type i = 1; i<domain.N-1; ++i)
                 {
                     index_type j = local_rows-1;
-                    new_local_u[get_vector_index(i,j)] = 1/4*(old_local_u[get_vector_index(i+1,j)] +
+                    new_local_u[get_vector_index(i,j)] = 0.25*(old_local_u[get_vector_index(i+1,j)] +
                                                             old_local_u[get_vector_index(i-1, j)] +
                                                             old_local_u[get_vector_index(i, j-1)] +
                                                             upper[i-1] +
@@ -125,14 +133,50 @@ namespace laplacian_solver{
                 }
             }
 
+            MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Allreduce(MPI_IN_PLACE, &err, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
             err *= domain.h;
             err = std::sqrt(err);
 
-            converged = err<tol;
+            if (rank == 0)std::cout <<  "err: " << err<< "\n";
+
+            converged = err<tol; 
 
             if (!converged)
             {
-                
+                MPI_Barrier(MPI_COMM_WORLD);
+
+                MPI_Status status;
+                // receive lower from rank-1
+                if (rank!=0)
+                {
+                    MPI_Recv(lower.data(), domain.N-2, MPI_DOUBLE, rank-1, (rank-1), MPI_COMM_WORLD, &status);
+                }
+                // sent local upper (for the upper rank is the lower)
+                if (rank!=size-1)
+                {
+                    for (index_type i = 0; i<domain.N-2; ++i){
+                        upper_to_send[i] = new_local_u[i+(local_rows-1)*local_rows+1];
+                    }
+                    MPI_Send(upper_to_send.data(), domain.N-2, MPI_DOUBLE, rank+1, rank, MPI_COMM_WORLD);
+                }
+
+                // sent local lower (to the lower rank is the upper)
+                if (rank!=0)
+                {
+                    for (index_type i = 0; i<domain.N-2; ++i){
+                        lower_to_send[i] = new_local_u[i];
+                    }
+                    MPI_Send(lower_to_send.data(), domain.N-2, MPI_DOUBLE, rank-1, (rank)+domain.N, MPI_COMM_WORLD);
+                }
+                // receive upper data from rank+1
+                if (rank!=size-1)
+                {
+                    MPI_Recv(upper.data(), domain.N-2, MPI_DOUBLE, rank+1, (rank+1)+domain.N, MPI_COMM_WORLD, &status);
+                }
+
+                old_local_u = new_local_u;
             }
             
         }

@@ -22,7 +22,9 @@ namespace laplacian_solver {
         const source_type u_ex;
 
     public:
-        Solver(const Domain & _domain, const source_type & _f, const source_type & _u_ex, const double & _tol = 1e-6, const unsigned & _max_it = 1000) : 
+        Solver(const Domain & _domain, const source_type & _f, 
+                const source_type & _u_ex, const double & _tol = 1e-6, 
+                const unsigned & _max_it = 1000) : 
         domain(_domain), f(_f), u_ex(_u_ex), tol(_tol), max_it(_max_it) ,bds(_domain) {};
 
         void evaluate_boundaries(std::vector<double> & );
@@ -40,7 +42,7 @@ namespace laplacian_solver {
         };
 
         inline index_type get_vector_index(const index_type & i, const index_type & j) {
-            return i+j*domain.N;
+            return (i+j*domain.N);
         }
     };
 

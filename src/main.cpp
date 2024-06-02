@@ -9,22 +9,27 @@
 #include "solver.hpp"
 
 int main(int argc, char ** argv) {
-    // using laplacian_solver;
+    
+    using namespace laplacian_solver;
 
     int provided;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+    
+    if (MPI_THREAD_MULTIPLE>provided)
+        std::cerr << "MPI implementation do not provide enough support for MPI_THREAD_MULPTIPLE";
 
     constexpr double pi = M_PI;
 
-    laplacian_solver::Domain domain(11, 0.,1.);
+    Domain domain(7, 0.,1.);
 
-    laplacian_solver::source_type f = [](const double & x, const double & y) {return 8*pi*pi*sin(2*pi*x)*sin(2*pi*y);};
-    laplacian_solver::source_type u_ex = [](const double & x, const double & y) {return sin(2*pi*x)*sin(2*pi*y);};
+    source_type f = [](const double & x, const double & y) {return 8*pi*pi*sin(2*pi*x)*sin(2*pi*y);};
+    source_type u_ex = [](const double & x, const double & y) {return sin(2*pi*x)*sin(2*pi*y);};
 
     std::vector<double> u(domain.get_size_grid(),0);
 
-    laplacian_solver::Solver s1(domain, f, u_ex);
-    s1.print();
+    Solver s1(domain, f, u_ex);
+
+    s1.compute_solution();
 
     MPI_Finalize();
 
@@ -43,8 +48,6 @@ int main(int argc, char ** argv) {
 
 
 
-    // if (MPI_THREAD_MULTIPLE>provided)
-    //     std::cerr << "MPI implementation do not provide enough support for MPI_THREAD_MULPTIPLE";
 
     // int rank,size;
     // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
