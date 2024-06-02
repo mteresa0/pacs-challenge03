@@ -112,6 +112,7 @@ namespace laplacian_solver{
         double prod = 0;
         double err = 0;
         unsigned n;
+        bool local_convergence;
         for(n = 0; n<max_it && !converged; ++n)
         {
             err = 0;
@@ -136,7 +137,7 @@ namespace laplacian_solver{
                 for (index_type i = 1; i<global_N-1; ++i)
                 {
                     // j = 0;
-                    new_local_u[get_vector_index(i,0)] = 0.25*(old_local_u[get_vector_index(i+1,0)] +
+                    new_local_u[get_vector_index(i,0)] = 0.25*(old_local_u[get_vector_index(i+1, 0)] +
                                                             old_local_u[get_vector_index(i-1, 0)] +
                                                             old_local_u[get_vector_index(i, 1)] +
                                                             lower[i-1] +
@@ -160,13 +161,11 @@ namespace laplacian_solver{
                 }
             }
 
-            MPI_Barrier(MPI_COMM_WORLD);
-            MPI_Allreduce(MPI_IN_PLACE, &err, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
             err *= domain.h;
             err = std::sqrt(err);
 
-            converged = err<tol; 
+            local_convergence = err<tol; 
+            MPI_Allreduce(&local_convergence, &converged, 1, MPI_CXX_BOOL, MPI_LAND, MPI_COMM_WORLD);
 
             if (!converged)
             {
