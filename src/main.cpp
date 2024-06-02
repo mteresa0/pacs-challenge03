@@ -7,6 +7,7 @@
 #include <numbers>
 #include "domain.hpp"
 #include "solver.hpp"
+#include "writeVTKfile.hpp"
 
 int main(int argc, char ** argv) {
     
@@ -25,12 +26,15 @@ int main(int argc, char ** argv) {
     source_type f = [](const double & x, const double & y) {return 8*pi*pi*sin(2*pi*x)*sin(2*pi*y);};
     source_type u_ex = [](const double & x, const double & y) {return sin(2*pi*x)*sin(2*pi*y);};
 
-    std::vector<double> u(domain.get_size_grid(),0);
-
     Solver s1(domain, f, u_ex);
 
-    s1.compute_solution();
+    std::vector<double> u_ = s1.compute_solution();
 
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    if (rank == 0) write_VTK(domain, u_, "solution.vtk", "solution u");
+    
     MPI_Finalize();
 
     // auto f = [](const double & x, const double & y) {return 8*pi*pi*sin(2*pi*x)*sin(2*pi*y);};

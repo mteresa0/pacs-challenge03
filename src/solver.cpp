@@ -84,7 +84,7 @@ namespace laplacian_solver{
         
         index_type global_starting_row = start_index[rank]/global_N;
 
-        std::cout << "Rank " << rank << " has " << local_rows << " rows\n";
+        // std::cout << "Rank " << rank << " has " << local_rows << " rows\n";
 
         std::vector<double> old_local_u(global_N*local_rows, 0);
 
@@ -178,7 +178,7 @@ namespace laplacian_solver{
                 if (rank!=size-1)
                 {
                     for (index_type i = 0; i<global_N-2; ++i){
-                        upper_to_send[i] = new_local_u[i+(local_rows-1)*local_rows+1];
+                        upper_to_send[i] = new_local_u[1+i+(local_rows-1)*global_N];
                     }
                     MPI_Send(upper_to_send.data(), global_N-2, MPI_DOUBLE, rank+1, rank, MPI_COMM_WORLD);
                 }
@@ -187,7 +187,7 @@ namespace laplacian_solver{
                 if (rank!=0)
                 {
                     for (index_type i = 0; i<global_N-2; ++i){
-                        lower_to_send[i] = new_local_u[i];
+                        lower_to_send[i] = new_local_u[i+1];
                     }
                     MPI_Send(lower_to_send.data(), global_N-2, MPI_DOUBLE, rank-1, (rank)+global_N, MPI_COMM_WORLD);
                 }
@@ -197,14 +197,15 @@ namespace laplacian_solver{
                     MPI_Recv(upper.data(), global_N-2, MPI_DOUBLE, rank+1, (rank+1)+global_N, MPI_COMM_WORLD, &status);
                 }
 
-                old_local_u = (new_local_u);
+                old_local_u = new_local_u;
             }
             
         } // end for loop for computing
 
         if (rank == 0) std::cout << "conveged in " << n << " iterations\n"; 
 
-        MPI_Allgatherv(new_local_u.data(), local_rows*global_N, MPI_DOUBLE, u.data(), local_size.data(), start_index.data(), MPI_DOUBLE, MPI_COMM_WORLD);
+        MPI_Allgatherv(new_local_u.data(), local_rows*global_N, MPI_DOUBLE, 
+        u.data(), local_size.data(), start_index.data(), MPI_DOUBLE, MPI_COMM_WORLD);
 
         return u;
     }
