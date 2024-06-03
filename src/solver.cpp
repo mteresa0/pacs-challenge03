@@ -4,6 +4,14 @@
 #include <cmath>
 #include "omp.h"
 
+static double c_start, c_diff;
+#define tic() c_start = MPI_Wtime();
+#define toc(x)                                       \
+  {                                                  \
+    c_diff = MPI_Wtime() - c_start;                  \
+    std::cout << x << c_diff << " [s]" << std::endl; \
+  }
+
 namespace laplacian_solver{
     void Boundaries::check_boundaries_compatibility(const double & a, const double & b)
     {
@@ -113,11 +121,13 @@ namespace laplacian_solver{
         double err = 0;
         unsigned n;
         bool local_convergence;
+
+        tic();
         for(n = 0; n<max_it && !converged; ++n)
         {
             err = 0;
             if (local_rows>2){
-                #pragma omp parallel for shared(new_local_u) num_threads(num_threads)
+                #pragma omp parallel for collapse(2) reduction(+:err) shared(new_local_u) num_threads(num_threads)
                 for (index_type j = 1; j<(local_rows-1); ++j) 
                 {
                     for (index_type i = 1; i<(global_N-1); ++i)
@@ -134,6 +144,7 @@ namespace laplacian_solver{
             }
 
             if (rank!=0) {
+                #pragma omp parallel for reduction(+:err) shared(new_local_u) num_threads(num_threads)
                 for (index_type i = 1; i<global_N-1; ++i)
                 {
                     // j = 0;
@@ -148,9 +159,10 @@ namespace laplacian_solver{
             }
 
             if (rank!=size-1) {
+                index_type j = local_rows-1;
+                #pragma omp parallel for reduction(+:err) shared(new_local_u) num_threads(num_threads)
                 for (index_type i = 1; i<global_N-1; ++i)
                 {
-                    index_type j = local_rows-1;
                     new_local_u[get_vector_index(i,j)] = 0.25*(old_local_u[get_vector_index(i+1,j)] +
                                                             old_local_u[get_vector_index(i-1, j)] +
                                                             old_local_u[get_vector_index(i, j-1)] +
@@ -210,7 +222,53 @@ namespace laplacian_solver{
         MPI_Allgatherv(new_local_u.data(), local_rows*global_N, MPI_DOUBLE, 
         u.data(), local_size.data(), start_index.data(), MPI_DOUBLE, MPI_COMM_WORLD);
 
+        MPI_Barrier(MPI_COMM_WORLD);
+        
+        if (rank==0) toc("Solution for N = " + std::to_string(global_N) +" computed in : ");
+
         return u;
+    }
+
+    double Solver::L2_norm(const std::vector<double> & u) const
+    {
+        double norm = 0;
+
+        int rank, size;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+        int num_threads = omp_get_num_threads();
+
+        const unsigned int min_local_size = global_N/size;
+        const unsigned int remainder = global_N%size;
+
+        std::vector<unsigned int> starting_row;
+        starting_row.resize(size);
+        int count = 0;
+        for (unsigned int r = 0; r < static_cast<unsigned int>(size); ++r){
+            starting_row[r] = count;
+            count += (remainder>r) ? (min_local_size+1) : min_local_size;
+        }
+
+        tic();
+        double u_ij = 0;
+        #pragma omp parallel for collapse(2) reduction(+:norm) num_threads(num_threads)
+        for (index_type i = 0; i<global_N ; ++i)
+            for(index_type j = starting_row[rank]; j<starting_row[rank+1]; ++j)
+            {
+                u_ij = u_ex(domain.get_coord(i), domain.get_coord(j));
+                norm += (u_ij-u[i+(j)*global_N])*(u_ij-u[i+(j)*global_N]);
+            }
+        
+        MPI_Allreduce(MPI_IN_PLACE, &norm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (rank==0) toc("Time L2 norm - N = " + std::to_string(global_N) + ": ");
+        norm *= domain.h;
+        norm = std::sqrt(norm);
+
+        
+        return norm;
     }
 
 } //  end namespace laplacian_solver

@@ -12,8 +12,6 @@
 #include "solver.hpp"
 #include "writeVTKfile.hpp"
 
-
-
 int main(int argc, char ** argv) {
     
     using namespace laplacian_solver;
@@ -29,21 +27,30 @@ int main(int argc, char ** argv) {
         std::cerr << "MPI implementation do not provide enough support for MPI_THREAD_MULPTIPLE";
 
     constexpr double pi = M_PI;
-
-    double a = 0.; double b = 1.;
-    unsigned int N = std::stoul(argv[1]);
-
-    Domain domain(N, a, b);
-
     source_type f = [](const double & x, const double & y) {return 8*pi*pi*sin(2*pi*x)*sin(2*pi*y);};
     source_type u_ex = [](const double & x, const double & y) {return sin(2*pi*x)*sin(2*pi*y);};
 
-    Solver s1(domain, f, u_ex);
-
-    std::vector<double> u_ = s1.compute_solution();
-
-    if (rank == 0) write_VTK(domain, u_, "solution.vtk", "solution u");
+    double a = 0.; double b = 1.;
     
+    for (unsigned int i = 1; i < static_cast<unsigned int>(argc); ++i)
+    {
+        unsigned int N = std::stoul(argv[i]);
+        Domain domain(N, a, b);
+
+        Solver s1(domain, f, u_ex);
+
+        std::vector<double> u_ = s1.compute_solution();
+
+        double norm_l2 = s1.L2_norm(u_);
+
+        if (rank == 0) 
+        {
+            std::cout << "L2 norm: " << norm_l2 << "\n";
+            write_VTK_2D_domain(domain, u_, "output/solution"+std::to_string(N)+".vtk", "solution u");
+        }
+        
+    }
+        
     MPI_Finalize();
 
     return 0;

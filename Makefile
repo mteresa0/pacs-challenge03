@@ -8,8 +8,12 @@ CPPFLAGS = -fopenmp -Wall -Wextra $(INCLUDE)
 SRCS = $(wildcard $(SRC_DIR)/*.cpp)
 EXEC = main
 
+nodes = 11 21 31 51
+threads = 2 3 4 6
+process = 2 3 4 6
+
 run : main
-	mpirun -np 4 ./main 20
+	mpirun -np 2 env OMP_NUM_THREAD=6 ./main $(nodes)
 
 all : clean
 	make run
