@@ -243,14 +243,14 @@ namespace laplacian_solver{
         const unsigned int remainder = global_N%size;
 
         std::vector<unsigned int> starting_row;
-        starting_row.resize(size);
+        starting_row.resize(size+1);
         int count = 0;
         for (unsigned int r = 0; r < static_cast<unsigned int>(size); ++r){
             starting_row[r] = count;
             count += (remainder>r) ? (min_local_size+1) : min_local_size;
         }
+        starting_row[size] = global_N;
 
-        tic();
         double u_ij = 0;
         #pragma omp parallel for collapse(2) reduction(+:norm) num_threads(num_threads)
         for (index_type i = 0; i<global_N ; ++i)
@@ -263,7 +263,6 @@ namespace laplacian_solver{
         MPI_Allreduce(MPI_IN_PLACE, &norm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
         MPI_Barrier(MPI_COMM_WORLD);
-        if (rank==0) toc("Time L2 norm - N = " + std::to_string(global_N) + ": ");
         norm *= domain.h;
         norm = std::sqrt(norm);
 
