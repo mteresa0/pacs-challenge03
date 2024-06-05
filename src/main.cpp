@@ -31,26 +31,33 @@ int main(int argc, char ** argv) {
     source_type u_ex = [](const double & x, const double & y) {return sin(2*pi*x)*sin(2*pi*y);};
 
     double a = 0.; double b = 1.;
-    
-    for (unsigned int i = 1; i < static_cast<unsigned int>(argc); ++i)
-    {
-        unsigned int N = std::stoul(argv[i]);
-        Domain domain(N, a, b);
 
-        Solver s1(domain, f, u_ex);
+    std::string convergence_filename = "outputs/convergence.csv";
+
+    std::vector<unsigned int> nodes; nodes.resize(argc-1);
+    std::vector<double> norms_l2; norms_l2.resize(argc-1);
+    std::vector<double> spacings; spacings.resize(argc-1);
+
+    for (unsigned int i = 0; i < static_cast<unsigned int>(argc)-1; ++i)
+    {
+        nodes[i] = std::stoul(argv[i+1]);
+        Domain domain(nodes[i], a, b);
+
+        Solver s1(domain, f, u_ex, 1e-6, 5e4);
 
         std::vector<double> u_ = s1.compute_solution();
 
-        double norm_l2 = s1.L2_norm(u_);
+        norms_l2[i] = (s1.L2_norm(u_));
+        spacings[i] = (domain.h);
 
-        if (rank == 0) 
-        {
-            std::cout << "L2 norm: " << norm_l2 << "\n";
-            write_VTK_2D_domain(domain, u_, "output/solution"+std::to_string(N)+".vtk", "solution u");
+        if (rank == 0) {
+            write_output::write_VTK_2D_domain(domain, u_, "outputs/solution"+std::to_string(nodes[i])+".vtk", "solution u");
         }
         
     }
-        
+
+    if (rank == 0) write_output::write_convergence(nodes, spacings, norms_l2, convergence_filename);
+    
     MPI_Finalize();
 
     return 0;
