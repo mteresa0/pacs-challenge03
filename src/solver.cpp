@@ -17,22 +17,22 @@ namespace laplacian_solver{
     void Boundaries::check_boundaries_compatibility(const double & a, const double & b)
     {
         // lower - right
-        if (B_lower.fun(b) != B_right.fun(a))
+        if (B_lower(b) != B_right(a))
             std::cerr << "boundary conditions are not compatibile (lower - right)";
 
                 
         // upper - right
-        if (B_upper.fun(b) != B_right.fun(b))
+        if (B_upper(b) != B_right(b))
             std::cerr << "boundary conditions are not compatibile (upper - right)";
 
                 
         // lower - left
-        if (B_lower.fun(a) != B_left.fun(a))
+        if (B_lower(a) != B_left(a))
             std::cerr << "boundary conditions are not compatibile (lower - left)";
 
                 
         // upper - right
-        if (B_upper.fun(a) != B_left.fun(b))
+        if (B_upper(a) != B_left(b))
             std::cerr << "boundary conditions are not compatibile (upper - left)";
 
         return;
@@ -44,30 +44,38 @@ namespace laplacian_solver{
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+        unsigned int remainder = global_N%size;
+        unsigned int min_local_size = global_N/size;
+        unsigned int starting_row = 0;
+        int count = 0;
+        for (unsigned int r = 0; r < static_cast<unsigned int>(rank)+1; ++r){
+            starting_row = count;
+            count += (remainder>r) ? (min_local_size+1) : min_local_size;
+        }
+        unsigned int end_rows = count;
+
         // update global lower
         if(rank==0)
             for (index_type i = 1; i<global_N-1;++i) {
-                u_local[i] = bds.B_lower.fun(domain.a + i*domain.h);
+                u_local[i] = bds.B_lower(domain.a + i*domain.h);
             };
         
-        
-        index_type local_rows = (global_N%size > static_cast<unsigned int>(rank)) ?  global_N/size+1 : global_N/size;
-
         // update global upper
         if (rank==size-1){
             for (index_type i = 1; i<global_N-1;++i) {
-                u_local[i+(local_rows-1)*global_N] = bds.B_upper.fun(domain.a + i*domain.h);
+                u_local[(end_rows-starting_row)*global_N-1-i] = bds.B_upper(domain.b - i*domain.h);
             }
         }
 
-        for (index_type i = 0; i<local_rows; ++i)
+        for (index_type i = starting_row; i<end_rows; ++i)
         {
             // update right
-            u_local[(i+1)*global_N-1] = bds.B_right.fun(get_global_row(rank, size, i));
+            u_local[(i+1-starting_row)*global_N-1] = bds.B_right(domain.a + i*domain.h);
             // update left
-            u_local[i*global_N] = bds.B_left.fun(get_global_row(rank, size, i));
+            u_local[(i-starting_row)*global_N] = bds.B_left(domain.a + i*domain.h);
         }
 
+        return;
     }
 
     std::vector<double> Solver::compute_solution() const
@@ -124,6 +132,8 @@ namespace laplacian_solver{
         double err = 0;
         unsigned n;
         bool local_convergence;
+
+        MPI_Barrier(MPI_COMM_WORLD);
 
         tic();
         for(n = 0; n<max_it && !converged; ++n)
@@ -220,14 +230,14 @@ namespace laplacian_solver{
             
         } // end for loop for computing
 
-        if (rank == 0) std::cout << "conveged in " << n << " iterations\n"; 
 
         MPI_Allgatherv(new_local_u.data(), local_rows*global_N, MPI_DOUBLE, 
         u.data(), local_size.data(), start_index.data(), MPI_DOUBLE, MPI_COMM_WORLD);
 
         MPI_Barrier(MPI_COMM_WORLD);
         
-        if (rank==0) toc("Solution for N = " + std::to_string(global_N) +" computed in : ");
+        if (rank == 0) std::cout << "\nSolution for N = " << std::to_string(global_N) << " conveged in " << n << " iterations\n"; 
+        if (rank==0) toc("Time : ");
 
         return u;
     }
@@ -242,7 +252,7 @@ namespace laplacian_solver{
 
         unsigned int num_threads = 0; 
         #pragma omp parallel 
-        { num_threads = omp_get_num_threads();};
+        {num_threads = omp_get_num_threads();};
 
         const unsigned int min_local_size = global_N/size;
         const unsigned int remainder = global_N%size;

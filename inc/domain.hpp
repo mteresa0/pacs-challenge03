@@ -18,7 +18,7 @@ namespace laplacian_solver {
         /// @brief distretization step
         const double h;
 
-        Domain() = default;
+        // explicit Domain() : N(11), a(0.), b(1.), h(0.1) {};
         Domain(const index_type & _N, const double & _a, const double & _b) : 
         N(_N), a(_a), b(_b), h((_b-_a)/(_N-1)) {};
 

@@ -31,7 +31,9 @@ int main(int argc, char ** argv) {
     source_type f = [](const double & x, const double & y) {return 8*pi*pi*sin(2*pi*x)*sin(2*pi*y);};
     source_type u_ex = [](const double & x, const double & y) {return sin(2*pi*x)*sin(2*pi*y);};
 
-    double a = 0.; double b = 1.;
+    double a = 0.; double b = 1.; 
+
+    Boundaries bds;
 
     unsigned int num_threads = 0;
 
@@ -57,7 +59,7 @@ int main(int argc, char ** argv) {
         nodes[i] = std::stoul(argv[i+1]);
         Domain domain(nodes[i], a, b);
 
-        Solver s1(domain, f, u_ex, 1e-6, 5e4);
+        Solver s1(domain, f, u_ex, 1e-10, 5e4, bds);
 
         std::vector<double> u_ = s1.compute_solution();
 

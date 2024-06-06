@@ -30,8 +30,8 @@ namespace laplacian_solver {
     public:
         Solver(const Domain & _domain, const source_type & _f, 
                 const source_type & _u_ex, const double & _tol = 1e-6, 
-                const unsigned & _max_it = 50000) : 
-        domain(_domain), global_N(_domain.N), bds(_domain), f(_f), u_ex(_u_ex), tol(_tol), max_it(_max_it) {};
+                const unsigned & _max_it = 50000, Boundaries _bds = (Boundaries())) : 
+        domain(_domain), global_N(_domain.N), bds(_bds), f(_f), u_ex(_u_ex), tol(_tol), max_it(_max_it) {};
 
         void evaluate_boundaries(std::vector<double> & ) const;
 
@@ -44,7 +44,8 @@ namespace laplacian_solver {
         inline index_type get_global_row(const int & rank, const int & size, const index_type & local_row) const 
         {
         return (global_N%size > static_cast<unsigned int>(rank)) ? 
-        rank*(1+global_N/size) + local_row : (global_N%size)+(global_N/size)*rank + local_row;
+        rank*(1+global_N/size) + local_row : 
+        (global_N%size)+(global_N/size)*rank + local_row;
         };     
 
         inline double f_discretized(index_type i, index_type j) const {

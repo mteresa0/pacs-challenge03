@@ -11,18 +11,24 @@ EXEC = main
 
 nodes = 16 32 64 128
 threads = 2 3 4 6
-process = 2 3 4 6
+process = 6 4 3 2 1
 
-only_threads : main
+1p_multithread : main
 	@for thread in $(threads); do\
 		echo ONE PROCESS - MULTITHREADS > $(TIMES_FILENAME)_1p_multithread_$$thread.txt;\
 		mpirun -np 1 env OMP_NUM_THREADS=$$thread ./main $(nodes) >> $(TIMES_FILENAME)_1p_multithread_$$thread.txt; done
 
 suffix := _1.txt
-only_process : main
+1t_multiprocess : main
 	@for proc in $(process); do\
 		echo ONE PROCESS - MULTITHREADS > $(TIMES_FILENAME)_1t_multiproc_$$proc.txt;\
-		mpirun -np $$proc env OMP_NUM_THREADS=2 ./main $(nodes) >> $(TIMES_FILENAME)_1t_multiproc_$$proc.txt; done
+		mpirun -np $$proc env OMP_NUM_THREADS=1 ./main $(nodes) >> $(TIMES_FILENAME)_1t_multiproc_$$proc.txt; done
+
+
+2t_multiprocess : main
+	@for proc in $(process); do\
+		echo ONE PROCESS - MULTITHREADS > $(TIMES_FILENAME)_2t_multiproc_$$proc.txt;\
+		mpirun -np $$proc env OMP_NUM_THREADS=2 ./main $(nodes) >> $(TIMES_FILENAME)_2t_multiproc_$$proc.txt; done
 
 
 main: $(SRCS)
