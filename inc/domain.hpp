@@ -35,10 +35,7 @@ namespace laplacian_solver {
         /// @param i index (from 0 to N-1)
         /// @return i-th node in x or y direction
         inline double get_coord(const index_type & i) const {return h*i+a;};
-
-        /// @brief returns the number of all the nodes
-        /// @return (N*N)
-        inline index_type get_size_grid() const {return N*N;}
+        
     };
 
 }; // namespace laplacian_solver

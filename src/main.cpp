@@ -1,6 +1,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-function-type"
 #include <mpi.h>
+#include <omp.h>
 #pragma GCC diagnostic pop
 
 #include <iostream>
@@ -32,11 +33,24 @@ int main(int argc, char ** argv) {
 
     double a = 0.; double b = 1.;
 
-    std::string convergence_filename = "outputs/convergence.csv";
+    unsigned int num_threads = 0;
 
-    std::vector<unsigned int> nodes; nodes.resize(argc-1);
-    std::vector<double> norms_l2; norms_l2.resize(argc-1);
-    std::vector<double> spacings; spacings.resize(argc-1);
+    #pragma omp parallel
+    {
+    num_threads = omp_get_num_threads();
+    }
+
+    std::string convergence_filename = "outputs/convergence_"
+                                    + std::to_string(size) 
+                                    + "_" + std::to_string(num_threads) 
+                                    +".csv";
+
+    std::vector<unsigned int> nodes; 
+    nodes.resize(argc-1);
+    std::vector<double> norms_l2; 
+    norms_l2.resize(argc-1);
+    std::vector<double> spacings; 
+    spacings.resize(argc-1);
 
     for (unsigned int i = 0; i < static_cast<unsigned int>(argc)-1; ++i)
     {

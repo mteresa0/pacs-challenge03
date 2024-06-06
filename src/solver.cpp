@@ -1,6 +1,7 @@
 #include "solver.hpp"
 #include "boundaries.hpp"
 #include <iostream>
+#include <fstream>
 #include <cmath>
 #include "omp.h"
 
@@ -71,13 +72,15 @@ namespace laplacian_solver{
 
     std::vector<double> Solver::compute_solution() const
     {
-        std::vector<double> u(domain.get_size_grid(), 0);
+        std::vector<double> u(domain.N*domain.N, 0);
 
         int rank, size;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-        int num_threads = omp_get_num_threads();
+        int num_threads = 0;
+        #pragma omp parallel
+        {num_threads =  omp_get_num_threads();};
 
         const unsigned int min_local_size = global_N/size;
         const unsigned int remainder = global_N%size;
@@ -237,27 +240,43 @@ namespace laplacian_solver{
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-        int num_threads = omp_get_num_threads();
+        unsigned int num_threads = 0; 
+        #pragma omp parallel 
+        { num_threads = omp_get_num_threads();};
 
         const unsigned int min_local_size = global_N/size;
         const unsigned int remainder = global_N%size;
 
-        std::vector<unsigned int> starting_row;
-        starting_row.resize(size+1);
+        unsigned int starting_row = 0;
         int count = 0;
-        for (unsigned int r = 0; r < static_cast<unsigned int>(size); ++r){
-            starting_row[r] = count;
+        for (unsigned int r = 0; r < static_cast<unsigned int>(rank)+1; ++r){
+            starting_row = count;
             count += (remainder>r) ? (min_local_size+1) : min_local_size;
         }
-        starting_row[size] = global_N;
+        unsigned int end_rows = count;
+
+        // std::fstream file("outputs/index.txt", std::ios::app);
+
+        // if (!file.is_open()) {
+        //     std::cerr << "error in opening file \n";
+        // };
+
+        // if (rank == 0) file << "\n " << size << " - N = " << global_N<<"\n";
+        
+        // for (unsigned int i = 0; i<size; ++i){
+        //     MPI_Barrier(MPI_COMM_WORLD);
+        //     if (i==rank){
+        //         file << rank << " - init:" << starting_row << " - end: " << end_rows << std::endl;
+        //     }
+        // }
 
         double u_ij = 0;
         #pragma omp parallel for collapse(2) reduction(+:norm) num_threads(num_threads)
         for (index_type i = 0; i<global_N ; ++i)
-            for(index_type j = starting_row[rank]; j<starting_row[rank+1]; ++j)
+            for(index_type j = starting_row; j<end_rows; ++j)
             {
                 u_ij = u_ex(domain.get_coord(i), domain.get_coord(j));
-                norm += (u_ij-u[i+(j)*global_N])*(u_ij-u[i+(j)*global_N]);
+                norm += (u_ij-u[i+(j)*global_N] ) * (u_ij-u[i+(j)*global_N]);
             }
         
         MPI_Allreduce(MPI_IN_PLACE, &norm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -266,8 +285,8 @@ namespace laplacian_solver{
         norm *= domain.h;
         norm = std::sqrt(norm);
 
-        
         return norm;
     }
+
 
 } //  end namespace laplacian_solver
