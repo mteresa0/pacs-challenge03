@@ -134,8 +134,8 @@ namespace laplacian_solver{
                 local_f[i+j*global_N] = f(domain.get_coord(i), domain.get_coord(j+global_starting_row));
         }
 
-        double prod = 0;
         double err = 0;
+        double h = domain.h;
         unsigned n;
         bool local_convergence;
 
@@ -146,24 +146,22 @@ namespace laplacian_solver{
         {
             err = 0;
             if (local_rows>2){
-                #pragma omp parallel for collapse(2) reduction(+:err) shared(new_local_u) num_threads(num_threads)
+                #pragma omp parallel for collapse(2) shared(new_local_u, old_local_u, h, local_f, global_N,local_rows) reduction(+:err) num_threads(num_threads)
                 for (index_type j = 1; j<(local_rows-1); ++j) 
-                {
                     for (index_type i = 1; i<(global_N-1); ++i)
                     {
                         new_local_u[get_vector_index(i,j)] = (old_local_u[get_vector_index(i+1,j)] +
                                                                 old_local_u[get_vector_index(i-1, j)] +
                                                                 old_local_u[get_vector_index(i, j+1)] + 
                                                                 old_local_u[get_vector_index(i, j-1)] + 
-                                                                domain.h*domain.h*local_f[i+j*global_N])*0.25;
-                        prod = new_local_u[get_vector_index(i,j)]-old_local_u[get_vector_index(i,j)];
+                                                                h*h*local_f[i+j*global_N])*0.25;
+                        double prod = new_local_u[get_vector_index(i,j)]-old_local_u[get_vector_index(i,j)];
                         err += prod*prod;
                     }
-                }
             }
 
             if (rank!=0) {
-                #pragma omp parallel for reduction(+:err) shared(new_local_u) num_threads(num_threads)
+                #pragma omp parallel for shared(new_local_u, old_local_u, h, local_f, global_N, lower) reduction(+:err) num_threads(num_threads)
                 for (index_type i = 1; i<global_N-1; ++i)
                 {
                     // j = 0;
@@ -171,26 +169,28 @@ namespace laplacian_solver{
                                                             old_local_u[get_vector_index(i-1, 0)] +
                                                             old_local_u[get_vector_index(i, 1)] +
                                                             lower[i-1] +
-                                                            domain.h*domain.h*local_f[i]);
-                    prod = new_local_u[i]-old_local_u[i];
+                                                            h*h*local_f[i]);
+                    double prod = new_local_u[get_vector_index(i,0)]-old_local_u[get_vector_index(i,0)];
                     err += prod*prod;
                 }
             }
 
             if (rank!=size-1) {
+                // loop_err = 0;
                 index_type j = local_rows-1;
-                #pragma omp parallel for reduction(+:err) shared(new_local_u) num_threads(num_threads)
+                #pragma omp parallel for shared(new_local_u, old_local_u, h, local_f, global_N, upper) reduction(+:err) num_threads(num_threads)
                 for (index_type i = 1; i<global_N-1; ++i)
                 {
                     new_local_u[get_vector_index(i,j)] = 0.25*(old_local_u[get_vector_index(i+1,j)] +
                                                             old_local_u[get_vector_index(i-1, j)] +
                                                             old_local_u[get_vector_index(i, j-1)] +
                                                             upper[i-1] +
-                                                            domain.h*domain.h*local_f[i+j*global_N]);
-                    prod = new_local_u[get_vector_index(i,j)]-old_local_u[get_vector_index(i,j)];
+                                                            h*h*local_f[i+j*global_N]);
+                    double prod = new_local_u[get_vector_index(i,j)]-old_local_u[get_vector_index(i,j)];
                     err += prod*prod;
                 }
             }
+
             err *= domain.h;
             err = std::sqrt(err);
 
@@ -280,21 +280,6 @@ namespace laplacian_solver{
             count += (remainder>r) ? (min_local_size+1) : min_local_size;
         }
         unsigned int end_rows = count;
-
-        // std::fstream file("outputs/index.txt", std::ios::app);
-
-        // if (!file.is_open()) {
-        //     std::cerr << "error in opening file \n";
-        // };
-
-        // if (rank == 0) file << "\n " << size << " - N = " << global_N<<"\n";
-        
-        // for (unsigned int i = 0; i<size; ++i){
-        //     MPI_Barrier(MPI_COMM_WORLD);
-        //     if (i==rank){
-        //         file << rank << " - init:" << starting_row << " - end: " << end_rows << std::endl;
-        //     }
-        // }
 
         double u_ij = 0;
         #pragma omp parallel for collapse(2) reduction(+:norm) num_threads(num_threads)

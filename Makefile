@@ -10,7 +10,7 @@ CPPFLAGS = -fopenmp -O3 -Wall -Wextra $(INCLUDE)
 SRCS = $(wildcard $(SRC_DIR)/*.cpp)
 EXEC = main
 
-nodes = 16 32 64
+nodes = 16 32 64 128
 threads = 1 2 3 4 6
 process = 1 2 3 4 5 6
 
