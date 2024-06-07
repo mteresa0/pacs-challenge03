@@ -7,11 +7,11 @@
 
 namespace laplacian_solver
 {
-    using index_type = std::size_t;
     using boundary_function = std::function<double(const double &)>;
 
     struct Boundaries
     {
+        // boundary function for each side
         const boundary_function B_upper;
         const boundary_function B_right;
         const boundary_function B_lower;

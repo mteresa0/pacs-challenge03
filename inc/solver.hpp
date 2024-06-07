@@ -12,20 +12,25 @@
 #include "boundaries.hpp"
 
 namespace laplacian_solver {
-
-    using index_type = std::size_t;
     using source_type=std::function<double(double, double)>;
 
     class Solver {
+        /// @brief struct containing the domain parameters
         const Domain domain;
-        const index_type global_N;
+        /// @brief number of nodes for each dimension
+        const unsigned int global_N;
+        /// @brief struct containing boundaries
         const Boundaries bds;
 
+        /// @brief source function
         const source_type f;
+        /// @brief exact solution
         const source_type u_ex;
 
+        /// @brief tollerance step per rank
         const double tol;
-        const unsigned max_it;
+        /// @brief max iterations
+        const unsigned int max_it;
 
     public:
         Solver(const Domain & _domain, const source_type & _f, 
@@ -39,20 +44,10 @@ namespace laplacian_solver {
 
         double L2_norm(const std::vector<double> & ) const;
 
-        inline void print() const { std::cout << global_N << "\n";};
-
-        inline index_type get_global_row(const int & rank, const int & size, const index_type & local_row) const 
-        {
-        return (global_N%size > static_cast<unsigned int>(rank)) ? 
-        rank*(1+global_N/size) + local_row : 
-        (global_N%size)+(global_N/size)*rank + local_row;
-        };     
-
-        inline double f_discretized(index_type i, index_type j) const {
-            return f(domain.get_coord(i), domain.get_coord(j));
-        };
-
-        inline index_type get_vector_index(const index_type & i, const index_type & j) const {
+        /// @brief return vector index considering domain.N columns
+        /// @param i 
+        /// @param j
+        inline unsigned int get_vector_index(const unsigned int & i, const unsigned int & j) const {
             return (i+j*global_N);
         }
 

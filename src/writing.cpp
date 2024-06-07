@@ -1,7 +1,15 @@
-#include "writeVTKfile.hpp"
+#include "writing.hpp"
 
 namespace laplacian_solver::write_output{
 
+    /// @brief write in <filename> in format VTK the solution of the poisson problem (data)
+    /// @param Nx 
+    /// @param Ny 
+    /// @param hx 
+    /// @param hy 
+    /// @param data 
+    /// @param filename 
+    /// @param title 
     void write_VTK_2D_domain(const unsigned int &Nx, const unsigned int Ny, const double &hx, const double &hy, const std::vector<double> &data, const std::string &filename, const std::string &title)
     {
         std::ofstream vtk_file(filename);
@@ -30,6 +38,11 @@ namespace laplacian_solver::write_output{
         return;
     }
 
+    /// @brief write into <filename> convergece data
+    /// @param nodes 
+    /// @param spacings 
+    /// @param norms 
+    /// @param filename 
     void write_convergence(const std::vector<unsigned int> &nodes, const std::vector<double> &spacings, const std::vector<double> &norms, const std::string &filename)
     {
         std::ofstream file(filename);

@@ -11,7 +11,7 @@
 #include <numbers>
 #include "domain.hpp"
 #include "solver.hpp"
-#include "writeVTKfile.hpp"
+#include "writing.hpp"
 
 int main(int argc, char ** argv) {
     

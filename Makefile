@@ -10,6 +10,8 @@ CPPFLAGS = -fopenmp -O3 -Wall -Wextra $(INCLUDE)
 SRCS = $(wildcard $(SRC_DIR)/*.cpp)
 EXEC = main
 
+MAX ?= 13
+
 nodes = 16 32 64 128
 threads = 1 2 3 4 6
 process = 1 2 3 4 5 6
@@ -31,7 +33,7 @@ all: clean init_times_files main
 	@for proc in $(process); do \
 		for thr in $(threads); do \
 			product=$$((proc*thr)); \
-			if [ $$product -lt 13 ]; then\
+			if [ $$product -lt $(MAX) ]; then\
 				mpirun -np $$proc env OMP_NUM_THREADS=$$thr ./main $(TIMES_FILENAME) $(nodes) >> $(PRINT_FILENAME); \
 			fi;\
 		done;\
