@@ -18,7 +18,6 @@ process = 6 4 3 2 1
 		echo ONE PROCESS - MULTITHREADS > $(TIMES_FILENAME)_1p_multithread_$$thread.txt;\
 		mpirun -np 1 env OMP_NUM_THREADS=$$thread ./main $(nodes) >> $(TIMES_FILENAME)_1p_multithread_$$thread.txt; done
 
-suffix := _1.txt
 1t_multiprocess : main
 	@for proc in $(process); do\
 		echo ONE PROCESS - MULTITHREADS > $(TIMES_FILENAME)_1t_multiproc_$$proc.txt;\
@@ -30,10 +29,19 @@ suffix := _1.txt
 		echo ONE PROCESS - MULTITHREADS > $(TIMES_FILENAME)_2t_multiproc_$$proc.txt;\
 		mpirun -np $$proc env OMP_NUM_THREADS=2 ./main $(nodes) >> $(TIMES_FILENAME)_2t_multiproc_$$proc.txt; done
 
+total_filename = $(TIMES_FILENAME)_total.txt
+all: clean main
+	@for proc in $(process); do \
+		for thr in $(threads); do \
+			mpirun -np $$proc env OMP_NUM_THREADS=$$thr ./main $(nodes) >> $(total_filename); \
+		done;\
+	done
 
 main: $(SRCS)
 	$(CXX) $(CPPFLAGS) $^ -o main
 
 clean : 
 	rm -f main
-	rm -f outputs/*
+	rm -f outputs/*.csv
+	rm -f outputs/*.vtk
+	rm -f $(TIMES_FILENAME)*

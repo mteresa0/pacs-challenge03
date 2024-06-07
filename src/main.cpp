@@ -18,13 +18,14 @@ int main(int argc, char ** argv) {
     using namespace laplacian_solver;
 
     int provided;
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+    int req = MPI_THREAD_MULTIPLE;
+    MPI_Init_thread(&argc, &argv, req, &provided);
 
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     
-    if (MPI_THREAD_MULTIPLE>provided)
+    if (req>provided)
         std::cerr << "MPI implementation do not provide enough support for MPI_THREAD_MULPTIPLE";
 
     constexpr double pi = M_PI;
@@ -59,7 +60,7 @@ int main(int argc, char ** argv) {
         nodes[i] = std::stoul(argv[i+1]);
         Domain domain(nodes[i], a, b);
 
-        Solver s1(domain, f, u_ex, 1e-10, 5e4, bds);
+        Solver s1(domain, f, u_ex, 1e-9, 1e5, bds);
 
         std::vector<double> u_ = s1.compute_solution();
 

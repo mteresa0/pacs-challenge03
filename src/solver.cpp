@@ -12,6 +12,10 @@ static double c_start, c_diff;
     c_diff = MPI_Wtime() - c_start;                  \
     std::cout << x << c_diff << " [s]" << std::endl; \
   }
+#define GET_TIME()                             \
+{                                              \
+    c_diff = MPI_Wtime() - c_start;            \
+}
 
 namespace laplacian_solver{
     void Boundaries::check_boundaries_compatibility(const double & a, const double & b)
@@ -185,7 +189,6 @@ namespace laplacian_solver{
                     err += prod*prod;
                 }
             }
-
             err *= domain.h;
             err = std::sqrt(err);
 
@@ -230,14 +233,25 @@ namespace laplacian_solver{
             
         } // end for loop for computing
 
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        GET_TIME();        
+        if (rank == 0) 
+        {
+            std::cout << "\nSolution for N = " << std::to_string(global_N) << " conveged in " << n << " iterations\n"; 
+            toc("Time : ");
+
+            std::ofstream file("outputs/times_" + std::to_string(global_N)+".txt", std::ios::app);
+            if (!file.is_open()){
+                std::cerr << "file did not open correctly!\n";
+            }
+            file << "N_proc = " << size << "; N_threads = " << num_threads << " - time : " << c_diff << std::endl;
+            // file << size << ", " << num_threads << ", " << c_diff << std::endl;
+            file.close();
+        }
 
         MPI_Allgatherv(new_local_u.data(), local_rows*global_N, MPI_DOUBLE, 
         u.data(), local_size.data(), start_index.data(), MPI_DOUBLE, MPI_COMM_WORLD);
-
-        MPI_Barrier(MPI_COMM_WORLD);
-        
-        if (rank == 0) std::cout << "\nSolution for N = " << std::to_string(global_N) << " conveged in " << n << " iterations\n"; 
-        if (rank==0) toc("Time : ");
 
         return u;
     }
