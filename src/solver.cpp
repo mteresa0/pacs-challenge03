@@ -82,13 +82,15 @@ namespace laplacian_solver{
         return;
     }
 
-    std::vector<double> Solver::compute_solution() const
+    std::vector<double> Solver::compute_solution(const std::string & filename_times) const
     {
-        std::vector<double> u(domain.N*domain.N, 0);
+        std::vector<double> u;
 
         int rank, size;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+        u.resize(global_N * global_N);
 
         int num_threads = 0;
         #pragma omp parallel
@@ -241,12 +243,12 @@ namespace laplacian_solver{
             std::cout << "\nSolution for N = " << std::to_string(global_N) << " conveged in " << n << " iterations\n"; 
             toc("Time : ");
 
-            std::ofstream file("outputs/times_" + std::to_string(global_N)+".txt", std::ios::app);
+            std::ofstream file(filename_times + std::to_string(global_N)+".csv", std::ios::app);
             if (!file.is_open()){
-                std::cerr << "file did not open correctly!\n";
+                std::cerr << filename_times + std::to_string(global_N)+".csv" << " did not open correctly!\n";
             }
-            file << "N_proc = " << size << "; N_threads = " << num_threads << " - time : " << c_diff << std::endl;
-            // file << size << ", " << num_threads << ", " << c_diff << std::endl;
+            // file << "N_proc = " << size << "; N_threads = " << num_threads << " - time : " << c_diff << std::endl;
+            file << size << ", " << num_threads << ", " << c_diff << std::endl;
             file.close();
         }
 

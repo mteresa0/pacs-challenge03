@@ -35,7 +35,7 @@ namespace laplacian_solver {
 
         void evaluate_boundaries(std::vector<double> & ) const;
 
-        std::vector<double> compute_solution() const;
+        std::vector<double> compute_solution(const std::string & ) const;
 
         double L2_norm(const std::vector<double> & ) const;
 
