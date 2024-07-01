@@ -1,0 +1,14 @@
+README:
+  Carefull to typos (ie. accoing => according :] )
+ 
+General Comments:
+  I would have expected a minimal indication on how to make the code work.
+  This means for instance:
+
+  An example on how to run the program is:
+    mpirun -np 4 env OMP_NUM_THREADS=2 ./main timeFileName gridSize
+
+- I would not put the exact solution in the constructor of the solver
+
+
+Code is well written and working amazingly well: very GOOD!
